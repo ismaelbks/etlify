@@ -14,7 +14,10 @@ module Etlify
       @record.with_lock do
         return :not_modified unless sync_line.stale?(digest)
 
-        crm_id = Etlify.config.crm_adapter.upsert!(payload: payload)
+        crm_id = Etlify.config.crm_adapter.upsert!(
+          payload: payload,
+          object_type: @record.etlify_crm_object_type
+        )
 
         sync_line.update!(
           crm_id: crm_id.presence,
@@ -35,7 +38,7 @@ module Etlify
     end
 
     def payload
-      @record.build_crm_payload
+      @__payload ||= @record.build_crm_payload
     end
 
     def sync_line

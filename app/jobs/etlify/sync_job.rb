@@ -1,7 +1,6 @@
 module Etlify
   class SyncJob < ActiveJob::Base
-    queue_as :low
-
+    queue_as Etlify.config.job_queue_name
     retry_on(StandardError, attempts: 3, wait: :polynomially_longer)
 
     def perform(record_class, id)

@@ -3,12 +3,11 @@ module Etlify
     extend ActiveSupport::Concern
 
     included do
-      # Ensure the model is isolated and has the necessary associations
     end
 
     class_methods do
-      # DSL: crm_synced(serializer:, sync_if: ->(r){ true })
-      def crm_synced(serializer:, sync_if: ->(_r) { true })
+      # DSL: crm_synced(serializer:, crm_object_type:, sync_if: ->(r){ true })
+      def crm_synced(serializer:, crm_object_type:, sync_if: ->(_r) { true })
         class_attribute(
           :etlify_serializer,
           instance_accessor: false,
@@ -18,6 +17,11 @@ module Etlify
           :etlify_guard,
           instance_accessor: false,
           default: sync_if
+        )
+        class_attribute(
+          :etlify_crm_object_type,
+          instance_accessor: true,
+          default: crm_object_type
         )
         has_one(
           :crm_synchronisation,

@@ -5,11 +5,11 @@ RSpec.shared_context "with companies and users" do
       domain: "capsens.eu"
     )
   end
+
   let!(:user) do
     User.create!(
       email: "john@capsens.eu",
-      full_name: "John Doe",
-      company: company
+      full_name: "John Doe"
     )
   end
 end

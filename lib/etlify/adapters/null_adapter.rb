@@ -4,11 +4,11 @@ module Etlify
   module Adapters
     # Adapter no-op pour dev/test
     class NullAdapter
-      def upsert!(payload:)
+      def upsert!(payload:, object_type:)
         payload.fetch(:id, SecureRandom.uuid).to_s
       end
 
-      def delete!(crm_id:)
+      def delete!(crm_id:, object_type:)
         true
       end
     end
