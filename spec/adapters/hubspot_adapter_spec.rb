@@ -204,4 +204,260 @@ RSpec.describe Etlify::Adapters::HubspotAdapter do
       }.to raise_error(ArgumentError)
     end
   end
+
+  describe "error handling (search/create/update)" do
+    context "when transport layer fails" do
+      it "wraps the error into TransportError", :aggregate_failures do
+        expect(http).to receive(:request).and_raise(StandardError.new("boom"))
+
+        expect {
+          adapter.upsert!(
+            object_type: "contacts",
+            payload: { email: "john@example.com", firstname: "John" },
+            id_property: "email"
+          )
+        }.to raise_error(Etlify::TransportError, /HTTP transport error: StandardError: boom/)
+      end
+    end
+
+    context "when transport layer raises an Etlify::Error" do
+      it "still wraps into TransportError and preserves the inner class in message" do
+        expect(http).to receive(:request).and_raise(Etlify::Error.new("boom", status: 500))
+
+        expect {
+          adapter.upsert!(object_type: "contacts", payload: { email: "john@example.com" }, id_property: "email")
+        }.to raise_error(Etlify::TransportError, /HTTP transport error: Etlify::Error: boom/)
+      end
+    end
+
+    context "when search returns 401" do
+      it "raises Unauthorized" do
+        expect(http).to receive(:request).with(
+          :post,
+          "https://api.hubapi.com/crm/v3/objects/contacts/search",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: kind_of(String)
+        ).and_return(
+          {
+            status: 401,
+            body: {
+              message: "Invalid credentials",
+              category: "INVALID_AUTHENTICATION",
+              correlationId: "cid-1"
+            }.to_json
+          }
+        )
+
+        expect {
+          adapter.upsert!(object_type: "contacts", payload: { email: "john@example.com" }, id_property: "email")
+        }.to raise_error(Etlify::Unauthorized, /Invalid credentials.*status=401/)
+      end
+    end
+
+    context "when search returns 500" do
+      it "raises ApiError" do
+        expect(http).to receive(:request).with(
+          :post,
+          "https://api.hubapi.com/crm/v3/objects/contacts/search",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: kind_of(String)
+        ).and_return(
+          {
+            status: 500,
+            body: { message: "Server error", category: "INTERNAL_ERROR" }.to_json
+          }
+        )
+
+        expect {
+          adapter.upsert!(object_type: "contacts", payload: { email: "john@example.com" }, id_property: "email")
+        }.to raise_error(Etlify::ApiError, /Server error.*status=500/)
+      end
+    end
+
+    context "when search returns 404" do
+      it "treats as not found and proceeds to create" do
+        # 1) Search -> 404 treated as "not found"
+        expect(http).to receive(:request).with(
+          :post,
+          "https://api.hubapi.com/crm/v3/objects/contacts/search",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: kind_of(String)
+        ).and_return({ status: 404, body: "" })
+
+        # 2) Create succeeds
+        expect(http).to receive(:request).with(
+          :post,
+          "https://api.hubapi.com/crm/v3/objects/contacts",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: satisfy { |b|
+            j = JSON.parse(b)
+            j["properties"] == { "email" => "j@e.com", "firstname" => "J" }
+          }
+        ).and_return({ status: 201, body: { id: "777" }.to_json })
+
+        id = adapter.upsert!(
+          object_type: "contacts",
+          payload: { email: "j@e.com", firstname: "J" },
+          id_property: "email"
+        )
+        expect(id).to eq("777")
+      end
+    end
+
+    context "when update returns 429" do
+      it "raises RateLimited" do
+        # Search finds object
+        expect(http).to receive(:request).with(
+          :post,
+          "https://api.hubapi.com/crm/v3/objects/contacts/search",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: kind_of(String)
+        ).and_return({ status: 200, body: { results: [{ "id" => "1234" }] }.to_json })
+
+        # Update is rate limited
+        expect(http).to receive(:request).with(
+          :patch,
+          "https://api.hubapi.com/crm/v3/objects/contacts/1234",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: kind_of(String)
+        ).and_return(
+          {
+            status: 429,
+            body: { message: "Rate limit exceeded", category: "RATE_LIMITS", correlationId: "cid-2" }.to_json
+          }
+        )
+
+        expect {
+          adapter.upsert!(
+            object_type: "contacts",
+            payload: { email: "john@example.com", firstname: "John" },
+            id_property: "email"
+          )
+        }.to raise_error(Etlify::RateLimited, /Rate limit exceeded.*status=429.*correlationId=cid-2/)
+      end
+    end
+
+    context "when create returns 409 (validation)" do
+      it "raises ValidationFailed with details from payload" do
+        # Search -> no results
+        expect(http).to receive(:request).with(
+          :post,
+          "https://api.hubapi.com/crm/v3/objects/contacts/search",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: kind_of(String)
+        ).and_return({ status: 200, body: { results: [] }.to_json })
+
+        # Create -> validation error
+        error_payload = {
+          message: "Property values were invalid",
+          category: "VALIDATION_ERROR",
+          correlationId: "cid-3",
+          errors: [{ message: "email must be unique", errorType: "CONFLICT" }]
+        }
+
+        expect(http).to receive(:request).with(
+          :post,
+          "https://api.hubapi.com/crm/v3/objects/contacts",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: kind_of(String)
+        ).and_return({ status: 409, body: error_payload.to_json })
+
+        begin
+          adapter.upsert!(
+            object_type: "contacts",
+            payload: { email: "dup@example.com", firstname: "Dup" },
+            id_property: "email"
+          )
+          raise "expected to raise"
+        rescue Etlify::ValidationFailed => e
+          # Assert key attributes are surfaced
+          expect(e.message).to match(/Property values were invalid/)
+          expect(e.status).to eq(409)
+          expect(e.category).to eq("VALIDATION_ERROR")
+          expect(e.correlation_id).to eq("cid-3")
+          expect(e.details).to be_an(Array)
+          expect(e.details.first["message"]).to eq("email must be unique")
+        end
+      end
+    end
+
+    context "when update returns 500" do
+      it "raises ApiError" do
+        # Search finds object
+        expect(http).to receive(:request).with(
+          :post,
+          "https://api.hubapi.com/crm/v3/objects/contacts/search",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: kind_of(String)
+        ).and_return({ status: 200, body: { results: [{ "id" => "1234" }] }.to_json })
+
+        # Update fails with 500
+        expect(http).to receive(:request).with(
+          :patch,
+          "https://api.hubapi.com/crm/v3/objects/contacts/1234",
+          headers: hash_including("Authorization" => "Bearer #{token}"),
+          body: kind_of(String)
+        ).and_return({ status: 500, body: { message: "Internal error" }.to_json })
+
+        expect {
+          adapter.upsert!(
+            object_type: "contacts",
+            payload: { email: "john@example.com", firstname: "John" },
+            id_property: "email"
+          )
+        }.to raise_error(Etlify::ApiError, /Internal error.*status=500/)
+      end
+    end
+  end
+
+  describe "#delete! error handling" do
+    it "returns false on 404" do
+      expect(http).to receive(:request).with(
+        :delete,
+        "https://api.hubapi.com/crm/v3/objects/contacts/1234",
+        headers: hash_including("Authorization" => "Bearer #{token}"),
+        body: nil
+      ).and_return({ status: 404, body: "" })
+
+      expect(adapter.delete!(object_type: "contacts", crm_id: "1234")).to be false
+    end
+
+    it "raises Unauthorized on 401" do
+      expect(http).to receive(:request).with(
+        :delete,
+        "https://api.hubapi.com/crm/v3/objects/contacts/1234",
+        headers: hash_including("Authorization" => "Bearer #{token}"),
+        body: nil
+      ).and_return(
+        { status: 401, body: { message: "No auth" }.to_json }
+      )
+
+      expect {
+        adapter.delete!(object_type: "contacts", crm_id: "1234")
+      }.to raise_error(Etlify::Unauthorized)
+    end
+
+    it "raises ApiError on 500" do
+      expect(http).to receive(:request).with(
+        :delete,
+        "https://api.hubapi.com/crm/v3/objects/contacts/1234",
+        headers: hash_including("Authorization" => "Bearer #{token}"),
+        body: nil
+      ).and_return(
+        { status: 500, body: { message: "Server down" }.to_json }
+      )
+
+      expect {
+        adapter.delete!(object_type: "contacts", crm_id: "1234")
+      }.to raise_error(Etlify::ApiError, /Server down/)
+    end
+
+    it "wraps transport errors into TransportError" do
+      expect(http).to receive(:request).and_raise(StandardError.new("network oops"))
+
+      expect {
+        adapter.delete!(object_type: "contacts", crm_id: "1234")
+      }.to raise_error(Etlify::TransportError, /network oops/)
+    end
+  end
 end

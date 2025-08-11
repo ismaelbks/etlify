@@ -22,13 +22,14 @@ module Etlify
         sync_line.update!(
           crm_id: crm_id.presence,
           last_digest: digest,
-          last_synced_at: Time.current
+          last_synced_at: Time.current,
+          last_error: nil
         )
 
         :synced
       end
     rescue StandardError => e
-      raise Etlify::Errors::SyncError, e.message
+      sync_line.update!(last_error: e.message)
     end
 
     private

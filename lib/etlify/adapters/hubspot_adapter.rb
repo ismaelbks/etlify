@@ -7,17 +7,15 @@ module Etlify
     # HubSpot Adapter (API v3) with per-call object type.
     # It supports native objects (e.g., "contacts", "companies", "deals") and custom objects (e.g., "p12345_myobject").
     #
+    # Error handling:
+    # - Non-2xx responses raise specific exceptions (Unauthorized, NotFound, RateLimited, ValidationFailed, ApiError).
+    # - Transport-level issues raise TransportError.
+    # - delete! returns false on 404 (object not found), raises otherwise.
+    #
     # Usage:
     #   adapter = Etlify::Adapters::HubspotAdapter.new(access_token: ENV["HUBSPOT_PRIVATE_APP_TOKEN"])
-    #
-    #   # Upsert a contact by email:
-    #   adapter.upsert!(object_type: "contacts", payload: { email: "john@example.com", firstname: "John" }, id_property: "email")
-    #
-    #   # Create a deal without an id_property:
-    #   adapter.upsert!(object_type: "deals", payload: { dealname: "New deal", amount: 1000 })
-    #
-    #   # Delete:
-    #   adapter.delete!(object_type: "contacts", crm_id: "1234567890")
+    #   adapter.upsert!(object_type: "contacts", payload: { email: "john@example.com" }, id_property: "email")
+    #   adapter.delete!(object_type: "contacts", crm_id: "123") # => true, or false if 404
     class HubspotAdapter
       API_BASE = "https://api.hubapi.com"
 
@@ -61,14 +59,18 @@ module Etlify
       # Delete an object by hs_object_id.
       # @param object_type [String]
       # @param crm_id [String]
-      # @return [Boolean] true on 2xx response
+      # @return [Boolean] true on 2xx response, false on 404
       def delete!(object_type:, crm_id:)
         raise ArgumentError, "object_type must be a String" unless object_type.is_a?(String) && !object_type.empty?
         raise ArgumentError, "crm_id must be provided" if crm_id.nil? || crm_id.to_s.empty?
 
         path = "/crm/v3/objects/#{object_type}/#{crm_id}"
         resp = request(:delete, path)
-        resp[:status].between?(200, 299)
+
+        return true if resp[:status].between?(200, 299)
+        return false if resp[:status] == 404
+
+        raise_for_error!(resp, path: path)
       end
 
       private
@@ -92,6 +94,9 @@ module Etlify
 
           res = http.request(req)
           { status: res.code.to_i, body: res.body }
+        rescue StandardError => e
+          # Bubble up transport-level errors to be wrapped by #request
+          raise e
         end
       end
 
@@ -106,9 +111,58 @@ module Etlify
         }
 
         raw_body = body && JSON.dump(body)
-        @http.request(method, url, headers: headers, body: raw_body).tap do |res|
-          res[:json] = parse_json_safe(res[:body])
+
+        begin
+          res = @http.request(method, url, headers: headers, body: raw_body)
+        rescue StandardError => e
+          # Normalize all transport errors into TransportError with as much context as possible
+          raise Etlify::TransportError.new(
+            "HTTP transport error: #{e.class}: #{e.message}",
+            status: 0,
+            raw: nil
+          )
         end
+
+        res[:json] = parse_json_safe(res[:body])
+        res
+      end
+
+      # Centralized error raising based on status + HubSpot error shape
+      def raise_for_error!(resp, path:)
+        status = resp[:status].to_i
+        return if status.between?(200, 299)
+
+        payload = resp[:json].is_a?(Hash) ? resp[:json] : {}
+        # HubSpot error payload commonly includes: message, category, correlationId, context, errors
+        message        = payload["message"] || "HubSpot API request failed"
+        category       = payload["category"]
+        correlation_id = payload["correlationId"]
+        details        = payload["errors"] || payload["context"]
+        code           = payload["status"] || payload["errorType"] || category
+
+        full_message = "#{message} (status=#{status}, path=#{path}"
+        full_message << ", category=#{category}" if category
+        full_message << ", correlationId=#{correlation_id}" if correlation_id
+        full_message << ")"
+
+        klass =
+          case status
+          when 401, 403 then Etlify::Unauthorized
+          when 404      then Etlify::NotFound
+          when 409, 422 then Etlify::ValidationFailed
+          when 429      then Etlify::RateLimited
+          else Etlify::ApiError
+          end
+
+        raise klass.new(
+          full_message,
+          status: status,
+          code: code,
+          category: category,
+          correlation_id: correlation_id,
+          details: details,
+          raw: resp[:body]
+        )
       end
 
       def parse_json_safe(str)
@@ -128,17 +182,27 @@ module Etlify
           limit: 1
         }
         resp = request(:post, path, body: body)
+
+        # Search endpoint should return 200 with results or empty array.
+        # Any other error should raise.
         if resp[:status] == 200 && resp[:json].is_a?(Hash)
           results = resp[:json]["results"]
           return results.first["id"] if results.is_a?(Array) && results.any?
+          return nil
         end
-        nil
+
+        # 404 is uncommon for /search, but if it happens, treat as "not found".
+        return nil if resp[:status] == 404
+
+        raise_for_error!(resp, path: path)
       end
 
       def update_object(object_type, object_id, properties)
         path = "/crm/v3/objects/#{object_type}/#{object_id}"
         body = { properties: stringify_keys(properties) }
-        request(:patch, path, body: body)
+        resp = request(:patch, path, body: body)
+        raise_for_error!(resp, path: path)
+        true
       end
 
       def create_object(object_type, properties, id_property, unique_value)
@@ -152,8 +216,10 @@ module Etlify
 
         resp = request(:post, path, body: { properties: props })
         if resp[:status].between?(200, 299) && resp[:json].is_a?(Hash) && resp[:json]["id"]
-          resp[:json]["id"].to_s
+          return resp[:json]["id"].to_s
         end
+
+        raise_for_error!(resp, path: path)
       end
 
       def stringify_keys(hash)

@@ -43,6 +43,7 @@ ActiveRecord::Schema.define do
     t.bigint  :resource_id,   null: false
     t.string  :last_digest
     t.datetime :last_synced_at
+    t.string :last_error
     t.timestamps
   end
 
