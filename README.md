@@ -29,6 +29,15 @@ Then run:
 
 ```bash
 bundle install
+bin/rails generate etlify:install
+bin/rails generate etlify:migration
+rails db:migrate
+
+# Then you can create serializer like this :
+bin/rails generate etlify:serializer <MODELNAME>
+# example :
+bin/rails generate etlify:serializer User
+# will create app/serializers/etlify/user_serializer.rb
 ```
 
 ---

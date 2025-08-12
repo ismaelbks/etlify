@@ -1,0 +1,12 @@
+module Etlify
+  module Serializers
+    class <%= class_name %>Serializer < BaseSerializer
+      def as_crm_payload(record)
+        {
+          id: record.id
+          # Add here the relevant fields for your CRM
+        }
+      end
+    end
+  end
+end
