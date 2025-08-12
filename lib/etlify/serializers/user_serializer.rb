@@ -1,12 +1,12 @@
 module Etlify
   module Serializers
     class UserSerializer < BaseSerializer
-      def as_crm_payload(user)
+      def as_crm_payload
         {
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          company_id: user.company_id
+          id: record.id,
+          email: record.email,
+          full_name: record.full_name,
+          company_id: record.company_id
         }
       end
     end

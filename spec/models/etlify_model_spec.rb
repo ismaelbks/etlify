@@ -12,8 +12,8 @@ RSpec.describe Etlify::Model do
   module Etlify
     module Serializers
       class TestUserSerializer < BaseSerializer
-        def as_crm_payload(user)
-          { id: user.id, email: user.email }
+        def as_crm_payload
+          { id: record.id, email: record.email }
         end
       end
     end

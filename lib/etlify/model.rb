@@ -40,7 +40,7 @@ module Etlify
     def build_crm_payload
       raise_unless_crm_is_configured
 
-      self.class.etlify_serializer.new.as_crm_payload(self)
+      self.class.etlify_serializer.new(self).as_crm_payload
     end
 
     # @param async [Boolean, nil] prioritaire sur la config globale

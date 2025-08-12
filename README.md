@@ -38,6 +38,7 @@ bin/rails generate etlify:serializer <MODELNAME>
 # example :
 bin/rails generate etlify:serializer User
 # will create app/serializers/etlify/user_serializer.rb
+# or you can create your own as long as you as it respond_to #new(record) and #as_crm_payload
 ```
 
 ---
