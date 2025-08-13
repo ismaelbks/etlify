@@ -1,11 +1,8 @@
-# spec/lib/etlify/records_to_sync_spec.rb
 # frozen_string_literal: true
 
 require "rails_helper"
 
-RSpec.describe Etlify::RecordsToSync do
-  # This shared context is assumed to be defined in your rails_helper as in the gem:
-  # it provides `user`, `company`, and builds minimal schema and models.
+RSpec.describe Etlify::BatchSync::StaleRecordsFetcher do
   include_context "with companies and users"
 
   let(:now)       { Time.utc(2025, 1, 1, 12, 0, 0) }
