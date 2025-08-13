@@ -24,7 +24,7 @@ RSpec.describe Etlify::Model do
     include Etlify::Model
     belongs_to :company, optional: true
 
-    crm_synced(
+    etlified_with(
       serializer: Etlify::Serializers::TestUserSerializer,
       crm_object_type: "contacts",
       sync_if: ->(u) { u.email.present? }
@@ -39,7 +39,7 @@ RSpec.describe Etlify::Model do
     self.table_name = "users"
     include Etlify::Model
 
-    crm_synced(
+    etlified_with(
       serializer: Etlify::Serializers::TestUserSerializer,
       crm_object_type: "contacts",
       sync_if: ->(_u) { false }

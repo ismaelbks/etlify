@@ -69,7 +69,7 @@ end
 class User < ApplicationRecord
   include Etlify::Model
 
-  crm_synced(
+  etlified_with(
     serializer: UserSerializer,
     crm_object_type: "contacts",
     sync_if: ->(user) { user.email.present? }

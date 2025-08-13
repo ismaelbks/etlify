@@ -56,7 +56,7 @@ end
 # Dummy models
 class Company < ActiveRecord::Base
   include Etlify::Model
-  crm_synced(
+  etlified_with(
     serializer: Etlify::Serializers::CompanySerializer,
     crm_object_type: "companies"
   )
@@ -65,7 +65,7 @@ end
 class User < ActiveRecord::Base
   include Etlify::Model
   belongs_to :company, optional: true
-  crm_synced(
+  etlified_with(
     serializer: Etlify::Serializers::UserSerializer,
     crm_object_type: "contacts"
   )
