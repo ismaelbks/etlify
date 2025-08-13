@@ -7,7 +7,11 @@ module Etlify
 
     class_methods do
       # DSL: etlified_with(serializer:, crm_object_type:, sync_if: ->(r){ true })
-      def etlified_with(serializer:, crm_object_type:, sync_if: ->(_r) { true })
+      def etlified_with(
+        serializer:,
+        crm_object_type:,
+        dependencies: [],
+        sync_if: ->(_r) { true })
         class_attribute(
           :etlify_serializer,
           instance_accessor: false,

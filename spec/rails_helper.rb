@@ -27,6 +27,7 @@ ActiveRecord::Schema.define do
   create_table :companies, force: true do |t|
     t.string :name
     t.string :domain
+    t.references :user, foreign_key: true
     t.timestamps
   end
 
@@ -55,6 +56,7 @@ end
 
 # Dummy models
 class Company < ActiveRecord::Base
+  has_many :users, dependent: :nullify
   include Etlify::Model
   etlified_with(
     serializer: Etlify::Serializers::CompanySerializer,

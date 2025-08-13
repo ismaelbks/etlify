@@ -1,0 +1,47 @@
+# Ignore bundler config
+/.bundle/
+
+# Ignore local Ruby environment and artifacts
+/.ruby-version
+/.ruby-gemset
+/.rbenv-vars
+/.tool-versions
+
+# Ignore built gems
+/*.gem
+
+# Ignore temporary build and packaging artifacts
+/pkg/
+/coverage/
+/doc/
+/yardoc/
+/tmp/
+/log/
+
+# Ignore byebug history
+.byebug_history
+
+# Ignore OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Ignore local test output
+/spec/reports/
+/spec/examples.txt
+
+# Ignore coverage reports
+/coverage/
+/simplecov/
+
+# Ignore RuboCop cache
+/.rubocop-https---*
+
+# Ignore environment variables file
+.env
+.env.*
+
+# Ignore pry history
+.pry_history
