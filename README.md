@@ -2,13 +2,13 @@
 
 > Rails-first, idempotent synchronisation between your ActiveRecord models and your CRM. HubSpot is supported out of the box; other CRMs can be plugged in via adapters.
 
-![CI Status](./badges/ci.svg) ![Test Coverage](./badges/coverage.svg) ![Ruby](./badges/ruby.svg) ![Rails](./badges/rails.svg)
+This gem has been designed by [Capsens, a fintech web and mobile agency based in Paris](https://capsens.eu/).
 
 ---
 
 ## Why Etlify? (Context & Intended Use)
 
-In internal products, it is common to persist domain data in Rails while also mirroring a subset of it into a CRM for marketing, sales or support workflows. Etlify provides a small, dependable toolkit to **declare** which models are CRM‑backed, **serialise** them into CRM payloads, and **synchronise** them in an **idempotent** fashion so repeated calls are safe and efficient.
+In internal products, it is common to persist domain data in Rails while also mirroring a subset of it into a CRM for marketing, sales or support workflows. Etlify provides a small, dependable toolkit to **declare** which models are CRM-backed, **serialise** them into CRM payloads, and **synchronise** them in an **idempotent** fashion so repeated calls are safe and efficient.
 
 Etlify sits beside your app; it does **not** try to own your domain or background processing. It integrates naturally with ActiveRecord and ActiveJob so you keep your current architecture and simply “switch on” CRM sync where you need it.
 
@@ -18,7 +18,7 @@ Etlify sits beside your app; it does **not** try to own your domain or backgroun
 
 | Area          | What you get                                                  | Why it helps                                        |
 | ------------- | ------------------------------------------------------------- | --------------------------------------------------- |
-| DSL           | `include Etlify::Model` + `etlified_with(...)` on your models | Opt‑in sync with a single line; clear, local intent |
+| DSL           | `include Etlify::Model` + `etlified_with(...)` on your models | Opt-in sync with a single line; clear, local intent |
 | Serialisers   | A base class to turn a model into a CRM payload               | Keeps mapping logic where it belongs; easy to test  |
 | Adapters      | HubSpot adapter included; plug your own                       | Swap CRMs without touching model code               |
 | Idempotence   | Stable digest of the last synced payload                      | Avoids redundant API calls; safe to retry           |
@@ -88,7 +88,7 @@ Etlify.configure do |config|
 end
 ```
 
-### Declaring a CRM‑synced model
+### Declaring a CRM-synced model
 
 ```ruby
 # app/models/user.rb
@@ -172,9 +172,58 @@ Etlify.config.crm_adapter = MyCrmAdapter.new(api_key: ENV["MYCRM_API_KEY"])
 
 ---
 
+## Batch synchronisation
+
+Beyond single-record syncs, Etlify ships with a batch API to **synchronise all
+records that changed since a given point in time**. This is useful to:
+
+- recover from outages or CRM downtime,
+- run periodic re-syncs (e.g. from a cron job),
+- debug the synchronisation logic against a controlled dataset.
+
+### API
+
+```ruby
+# Async (default): enqueue one job per record
+Etlify::BatchSync::StaleRecordsSyncer.call(since: 3.hours.ago)
+
+# Synchronous: run inline in the current process
+Etlify::BatchSync::StaleRecordsSyncer.call(
+  since: 1.day.ago,
+  async: false
+)
+
+# Custom batch size (number of IDs per SQL batch)
+Etlify::BatchSync::StaleRecordsSyncer.call(
+  since: 1.week.ago,
+  batch_size: 1000
+)
+
+# Pass ActiveJob options (queue name, priority, etc.)
+Etlify::BatchSync::StaleRecordsSyncer.call(
+  since: 2.days.ago,
+  job_options: { queue: "etlify", priority: 10 }
+)
+```
+
+### How it works
+
+- `StaleRecordsFetcher` inspects all models that declared `etlified_with` and
+  builds SQL scopes to find records whose **own timestamp or dependencies’
+  timestamps** are within `[since, now]`.
+- Results are projected down to **only the primary key** to keep queries light.
+- `StaleRecordsSyncer` then iterates over those records in **batches**:
+  - in _async_ mode (default), enqueues a `SyncJob` for each record,
+  - in _sync_ mode, calls the `Synchronizer` directly inline.
+
+> ⚡️ Tip: prefer `async: true` in production so Rails web or rake processes
+> aren’t blocked; let your background workers handle the flow.
+
+---
+
 ## How idempotence works
 
-- Before sending anything to the CRM, Etlify builds the payload via your serializer and computes a **stable digest** (SHA‑256 by default) of that payload.
+- Before sending anything to the CRM, Etlify builds the payload via your serializer and computes a **stable digest** (SHA-256 by default) of that payload.
 - Etlify stores the **last successful digest** alongside the CRM ID for that record in your application database.
 - On subsequent syncs, if the **new digest equals the last stored digest**, Etlify **skips** the remote call and returns `:not_modified`.
 - If the digest **differs**, Etlify upserts the record remotely and updates the stored digest.
@@ -209,10 +258,8 @@ end
 ### Behaviour
 
 - `object_type`: the target entity, e.g. `"contacts"`, `"companies"`, `"deals"`, or the API name of a custom object.
-- `id_property` (optional): if your upsert should search for an existing record by a unique property (e.g. `"email"` for contacts), the adapter uses it to find‑or‑create.
+- `id_property` (optional): if your upsert should search for an existing record by a unique property (e.g. `"email"` for contacts), the adapter uses it to find-or-create.
 - If no match is found (or no `id_property` is provided), the adapter **creates** a new record.
-
-> Where to specify `id_property` depends on your integration point. Keep your serializer authoritative about which property is unique and ensure it appears in the payload.
 
 ### Example: Contact upsert
 
@@ -279,17 +326,17 @@ end
 ### General tips
 
 - **Start small**: sync only the fields you truly need in your serializer. You can add more later.
-- **Stable payloads**: avoid non‑deterministic fields (timestamps, random IDs) in the payload; they defeat idempotence.
+- **Stable payloads**: avoid non-deterministic fields (timestamps, random IDs) in the payload; they defeat idempotence.
 - **Guard with `sync_if`**: skip incomplete records (e.g. no email) to reduce noise.
 - **Observe logs**: Etlify uses your configured logger; in development, check the console.
-- **Queue selection**: route `SyncJob` to a dedicated low‑priority queue to keep UX jobs snappy.
+- **Queue selection**: route `SyncJob` to a dedicated low-priority queue to keep UX jobs snappy.
 
 ### Common questions
 
 - **Nothing seems to happen when I call `crm_sync!`**
   Ensure you ran the migration generator and migrated the database. Also verify your `sync_if` predicate returns `true` and the serializer returns a Hash.
 
-- **My payload keeps re‑syncing even when nothing changed**
+- **My payload keeps re-syncing even when nothing changed**
   Confirm your serializer output is stable and keys are consistently ordered/typed. If you add transient data, the digest will change on every run.
 
 - **How do I force a refresh?**
@@ -299,12 +346,12 @@ end
   Etlify maintains sync state (last digest and remote ID) in your app’s database so it can skip or delete correctly.
 
 - **Can I batch synchronise?**
-  Loop over records and call `crm_sync!`. Keep batches small and let your queue handle back‑pressure.
+  Use `Etlify::BatchSync::StaleRecordsSyncer.call(...)`. Keep batches small and let your queue handle back-pressure.
 
 ### Debugging checklist
 
 - Credentials present and valid (e.g. `HUBSPOT_PRIVATE_APP_TOKEN`).
-- Adapter set (default is a no‑op NullAdapter).
+- Adapter set (default is a no-op NullAdapter).
 - Jobs worker running (when using async).
 - Serializer returns a Hash with the expected field names.
 - Database table for sync state exists and is reachable.
@@ -338,13 +385,13 @@ expect(fake_adapter).to have_received(:upsert!).with(
 )
 ```
 
-> For end‑to‑end tests, use VCR or WebMock around your adapter, but prefer unit‑level tests against your serialisers and model logic.
+> For end-to-end tests, use VCR or WebMock around your adapter, but prefer unit-level tests against your serialisers and model logic.
 
 ---
 
 ## Adapters included
 
-- `Etlify::Adapters::NullAdapter` (default; no‑op)
+- `Etlify::Adapters::NullAdapter` (default; no-op)
 - `Etlify::Adapters::HubspotAdapter` (API v3)
 
 ---
@@ -357,4 +404,4 @@ expect(fake_adapter).to have_received(:upsert!).with(
 
 ## Maintainers & Support
 
-This library is maintained internally. Please open an issue in your private tracker if you need enhancements or have questions.
+This library is maintained internally. Please open an issue if you need enhancements or have questions.
