@@ -270,7 +270,6 @@ GEM
       base64
       websocket-extensions (>= 0.1.0)
     websocket-extensions (0.1.5)
-    yard (0.9.37)
     zeitwerk (2.7.3)
 
 PLATFORMS
@@ -289,13 +288,12 @@ DEPENDENCIES
   activesupport (>= 7.0)
   etlify!
   rails (~> 7.1)
-  rspec
+  rspec (~> 3.13)
   rspec-rails (~> 6.1)
-  rubocop
+  rubocop (~> 1.79)
   simplecov (~> 0.22.0)
-  sqlite3
+  sqlite3 (~> 2.7)
   timecop
-  yard
 
 BUNDLED WITH
    2.7.1

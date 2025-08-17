@@ -8,6 +8,7 @@ Gem::Specification.new do |spec|
   spec.summary       = "Idempotent synchronization between your Rails models and a CRM."
   spec.description   = "Rails DSL + adapters to synchronize your ActiveRecord resources with an external CRM using digest and idempotency."
   spec.license       = "MIT"
+  spec.homepage      = "https://github.com/capsens/etlify"
 
   spec.files = Dir.glob(
     "{app,lib,spec}/**/*",
@@ -16,9 +17,8 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "rails", ">= 7.0", "< 8"
-  spec.add_development_dependency "rspec"
+  spec.add_development_dependency "rspec", "~> 3.13"
   spec.add_development_dependency "rspec-rails", "~> 6.1"
-  spec.add_development_dependency "sqlite3"
-  spec.add_development_dependency "rubocop"
-  spec.add_development_dependency "yard"
+  spec.add_development_dependency "sqlite3", "~> 2.7"
+  spec.add_development_dependency "rubocop", "~> 1.79"
 end
