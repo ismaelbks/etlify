@@ -16,3 +16,7 @@ group :development, :test do
   gem "rubocop", require: false
   gem "yard", require: false
 end
+
+group :test do
+  gem "simplecov", "~> 0.22.0"
+end

@@ -14,7 +14,7 @@ RSpec.describe Etlify::BatchSync::StaleRecordsSyncer do
   after { Timecop.return }
 
   def enqueued_for(job_class)
-    ActiveJob::Base.queue_adapter.enqueued_jobs.select { |j| j[:job] == job_class }
+    ActiveJob::Base.queue_adapter.enqueued_jobs.select { |j| j[:job].to_s == job_class.to_s }
   end
 
   def enqueued_args_for(job_class)

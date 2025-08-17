@@ -52,7 +52,7 @@ module Etlify
       return false if self.class.respond_to?(:etlify_guard) && !self.class.etlify_guard.call(self)
 
       if async
-        Etlify.config.sync_job_class.constantize.perform_later(self.class.name, id)
+        job_class.perform_later(self.class.name, id)
       else
         Etlify::Synchronizer.call(self)
       end
@@ -63,6 +63,10 @@ module Etlify
     end
 
     private
+      def job_class
+        given_class = Etlify.config.sync_job_class
+        given_class.is_a?(String) ? given_class.constantize : given_class
+      end
 
       def raise_unless_crm_is_configured
         return if self.class.respond_to?(:etlify_serializer) && self.class.etlify_serializer

@@ -52,7 +52,7 @@ module Etlify
 
       def self.enqueue_jobs(ids, model, job_options)
         ids.each do |id|
-          Etlify.config.sync_job_class.constantize.set(**job_options).perform_later(model.name, id)
+          job_class.set(**job_options).perform_later(model.name, id)
         end
       end
       private_class_method :enqueue_jobs
@@ -63,6 +63,12 @@ module Etlify
         end
       end
       private_class_method :run_sync
+
+      def self.job_class
+        given_class = Etlify.config.sync_job_class
+        given_class.is_a?(String) ? given_class.constantize : given_class
+      end
+      private_class_method :job_class
     end
   end
 end
