@@ -101,6 +101,7 @@ class User < ApplicationRecord
   etlified_with(
     serializer: UserSerializer,
     crm_object_type: "contacts",
+    id_property: :id,
     # Only sync when an email exists
     sync_if: ->(user) { user.email.present? },
     # useful if your serialization include dependencies
@@ -288,7 +289,8 @@ class Subscription < ApplicationRecord
 
   etlified_with(
     serializer: SubscriptionSerializer,
-    crm_object_type: "p1234567_subscription" # Custom object API name
+    crm_object_type: "p1234567_subscription" # Custom object API name,
+    id_propery: :id,
   )
 end
 ```
