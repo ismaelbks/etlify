@@ -5,8 +5,8 @@ module Etlify
     class StaleRecordsSyncer
       # Public API
       # Example:
-      #   Etlify::BatchSync.call(since: 3.hours.ago) # async (default)
-      #   Etlify::BatchSync.call(
+      #   Etlify::BatchSync::StaleRecordsSyncer.call(since: 3.hours.ago) # async (default)
+      #   Etlify::BatchSync::StaleRecordsSyncer.call(
       #     since: 1.day.ago,
       #     async: false
       #   ) # sync (for small runs or debugging)
@@ -52,7 +52,7 @@ module Etlify
 
       def self.enqueue_jobs(ids, model, job_options)
         ids.each do |id|
-          Etlify::SyncJob.set(**job_options).perform_later(model.name, id)
+          Etlify.config.sync_job_class.set(**job_options).perform_later(model.name, id)
         end
       end
       private_class_method :enqueue_jobs

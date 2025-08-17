@@ -57,7 +57,7 @@ bundle install
 bin/rails generate etlify:install
 
 # Install sync-state tables
-bin/rails generate etlify:migration
+bin/rails generate etlify:migration CreateCrmSynchronisations
 bin/rails db:migrate
 
 # Generate a serializer for a model (optional helper)
@@ -84,6 +84,7 @@ Etlify.configure do |config|
   # Optional settings (shown with defaults)
   config.digest_strategy = Etlify::Digest.method(:stable_sha256) # -> String
   config.logger          = Rails.logger
+  config.job_class       = "Etlify::SyncJob"
   config.job_queue_name  = "low"
 end
 ```
@@ -133,7 +134,7 @@ end
 ```ruby
 user = User.find(1)
 
-# Async by default (enqueues Etlify::SyncJob on the configured queue)
+# Async by default (enqueues Etlify.config.sync_job_class (default: "Etlify::SyncJob") on the configured queue)
 user.crm_sync!
 
 # Run inline (no job)

@@ -109,7 +109,7 @@ RSpec.describe Etlify::Model do
       }.to change { ActiveJob::Base.queue_adapter.enqueued_jobs.size }.by(1)
 
       job = ActiveJob::Base.queue_adapter.enqueued_jobs.last
-      expect(job[:job]).to eq(Etlify::SyncJob)
+      expect(job[:job]).to eq(Etlify.config.sync_job_class)
       expect(job[:args]).to include("TestUser", user.id)
     end
 

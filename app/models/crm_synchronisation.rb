@@ -11,4 +11,7 @@ class CrmSynchronisation < ApplicationRecord
   def stale?(digest)
     last_digest != digest
   end
+
+  scope :with_error, -> { where.not(last_error: nil) }
+  scope :without_error, -> { where(last_error: nil) }
 end

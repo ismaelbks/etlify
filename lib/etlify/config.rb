@@ -5,6 +5,7 @@ module Etlify
       :digest_strategy,
       :logger,
       :job_queue_name,
+      :sync_job_class,
       :cache_store
     )
 
@@ -18,6 +19,7 @@ module Etlify
 
       rails_cache  = defined?(Rails) && Rails.respond_to?(:cache) ? Rails.cache : nil
       @cache_store = rails_cache || ActiveSupport::Cache::MemoryStore.new
+      @sync_job_class = "Etlify::SyncJob"
     end
   end
 end

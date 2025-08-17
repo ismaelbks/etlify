@@ -41,8 +41,8 @@ RSpec.describe Etlify::BatchSync::StaleRecordsSyncer do
 
       described_class.call(since: from_time, async: true, batch_size: 100)
 
-      expect(enqueued_for(Etlify::SyncJob).size).to eq(2)
-      expect(enqueued_args_for(Etlify::SyncJob))
+      expect(enqueued_for(Etlify.config.sync_job_class).size).to eq(2)
+      expect(enqueued_args_for(Etlify.config.sync_job_class))
         .to match_array([["User", user1.id], ["User", user2.id]])
     end
 
@@ -55,8 +55,8 @@ RSpec.describe Etlify::BatchSync::StaleRecordsSyncer do
 
       described_class.call(since: from_time, async: true, batch_size: 2)
 
-      expect(enqueued_for(Etlify::SyncJob).size).to eq(5)
-      expect(enqueued_args_for(Etlify::SyncJob))
+      expect(enqueued_for(Etlify.config.sync_job_class).size).to eq(5)
+      expect(enqueued_args_for(Etlify.config.sync_job_class))
         .to match_array(ids.map { |id| ["User", id] })
     end
 
@@ -73,7 +73,7 @@ RSpec.describe Etlify::BatchSync::StaleRecordsSyncer do
         job_options: { queue: "etlify" }
       )
 
-      jobs = enqueued_for(Etlify::SyncJob)
+      jobs = enqueued_for(Etlify.config.sync_job_class)
       expect(jobs.size).to eq(1)
       expect(jobs.first[:args]).to eq(["User", user.id])
       expect(jobs.first[:queue]).to eq("etlify")
@@ -94,7 +94,7 @@ RSpec.describe Etlify::BatchSync::StaleRecordsSyncer do
 
       described_class.call(since: from_time, async: false, batch_size: 1)
 
-      expect(enqueued_for(Etlify::SyncJob)).to be_empty
+      expect(enqueued_for(Etlify.config.sync_job_class)).to be_empty
     end
 
     it "skips when records relation is blank", :aggregate_failures do
@@ -105,7 +105,7 @@ RSpec.describe Etlify::BatchSync::StaleRecordsSyncer do
 
       described_class.call(since: from_time)
 
-      expect(enqueued_for(Etlify::SyncJob)).to be_empty
+      expect(enqueued_for(Etlify.config.sync_job_class)).to be_empty
     end
 
     it "handles multiple models (User and Company)", :aggregate_failures do
@@ -120,7 +120,7 @@ RSpec.describe Etlify::BatchSync::StaleRecordsSyncer do
 
       described_class.call(since: from_time)
 
-      expect(enqueued_args_for(Etlify::SyncJob))
+      expect(enqueued_args_for(Etlify.config.sync_job_class))
         .to include(["User", user.id], ["Company", company.id])
     end
   end
