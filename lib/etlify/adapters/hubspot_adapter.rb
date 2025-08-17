@@ -39,8 +39,12 @@ module Etlify
         unique_value = nil
 
         if id_property
-          # Extract unique value whether key is provided as String or Symbol
-          unique_value = properties.delete(id_property) || properties.delete(id_property.to_sym)
+          # Extract unique value whether id_property/payload keys are
+          # string or symbol. Normalize, then try both forms.
+          key_str = id_property.to_s
+          key_sym = key_str.to_sym
+          unique_value =
+            properties.delete(key_str) || properties.delete(key_sym)
         end
 
         object_id =
