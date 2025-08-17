@@ -6,11 +6,17 @@ module Etlify
     end
 
     class_methods do
-      # DSL: etlified_with(serializer:, crm_object_type:, sync_if: ->(r){ true })
+      # DSL: etlified_with(
+      # serializer:,
+      # crm_object_type:,
+      # id_property:,
+      # sync_if: ->(r){ true }
+      # )
       def etlified_with(
         serializer:,
         crm_object_type:,
         dependencies: [],
+        id_property:,
         sync_if: ->(_r) { true })
         class_attribute(
           :etlify_serializer,
@@ -26,6 +32,11 @@ module Etlify
           :etlify_crm_object_type,
           instance_accessor: true,
           default: crm_object_type
+        )
+        class_attribute(
+          :etlify_id_property,
+          instance_accessor: true,
+          default: id_property
         )
         has_one(
           :crm_synchronisation,

@@ -16,6 +16,7 @@ module Etlify
 
         crm_id = Etlify.config.crm_adapter.upsert!(
           payload: payload,
+          id_property: @record.etlify_id_property,
           object_type: @record.etlify_crm_object_type
         )
 

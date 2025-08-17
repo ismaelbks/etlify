@@ -61,7 +61,8 @@ class Company < ActiveRecord::Base
   include Etlify::Model
   etlified_with(
     serializer: Etlify::Serializers::CompanySerializer,
-    crm_object_type: "companies"
+    crm_object_type: "companies",
+    id_property: :id
   )
 end
 
@@ -70,6 +71,7 @@ class User < ActiveRecord::Base
   belongs_to :company, optional: true
   etlified_with(
     serializer: Etlify::Serializers::UserSerializer,
-    crm_object_type: "contacts"
+    crm_object_type: "contacts",
+    id_property: :id
   )
 end

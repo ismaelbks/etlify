@@ -27,6 +27,7 @@ RSpec.describe Etlify::Model do
     etlified_with(
       serializer: Etlify::Serializers::TestUserSerializer,
       crm_object_type: "contacts",
+      id_property: :id,
       sync_if: ->(u) { u.email.present? }
     )
 
@@ -42,6 +43,7 @@ RSpec.describe Etlify::Model do
     etlified_with(
       serializer: Etlify::Serializers::TestUserSerializer,
       crm_object_type: "contacts",
+      id_property: :id,
       sync_if: ->(_u) { false }
     )
 

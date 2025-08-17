@@ -122,7 +122,8 @@ RSpec.describe Etlify::BatchSync::StaleRecordsFetcher do
             self.table_name = "foos"
             etlified_with(
               serializer: Etlify::Serializers::UserSerializer,
-              crm_object_type: "foos"
+              crm_object_type: "foos",
+              id_property: :id
             )
           end
         )

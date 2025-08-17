@@ -259,7 +259,7 @@ end
 ### Behaviour
 
 - `object_type`: the target entity, e.g. `"contacts"`, `"companies"`, `"deals"`, or the API name of a custom object.
-- `id_property` (optional): if your upsert should search for an existing record by a unique property (e.g. `"email"` for contacts), the adapter uses it to find-or-create.
+- `id_property` (mandtory): if your upsert should search for an existing record by a unique property (e.g. `"email"` for contacts), the adapter uses it to find-or-create.
 - If no match is found (or no `id_property` is provided), the adapter **creates** a new record.
 
 ### Example: Contact upsert
@@ -271,6 +271,7 @@ class User < ApplicationRecord
   etlified_with(
     serializer: UserSerializer,
     crm_object_type: "contacts",
+    id_property: :cs_capsens_id,
     sync_if: ->(user) { user.email.present? }
   )
 end
