@@ -52,7 +52,7 @@ module Etlify
 
       def self.enqueue_jobs(ids, model, job_options)
         ids.each do |id|
-          Etlify.config.sync_job_class.set(**job_options).perform_later(model.name, id)
+          Etlify.config.sync_job_class.constantize.set(**job_options).perform_later(model.name, id)
         end
       end
       private_class_method :enqueue_jobs

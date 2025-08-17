@@ -52,7 +52,7 @@ module Etlify
       return false if self.class.respond_to?(:etlify_guard) && !self.class.etlify_guard.call(self)
 
       if async
-        Etlify.config.sync_job_class.perform_later(self.class.name, id)
+        Etlify.config.sync_job_class.constantize.perform_later(self.class.name, id)
       else
         Etlify::Synchronizer.call(self)
       end
