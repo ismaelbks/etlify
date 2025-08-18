@@ -77,7 +77,7 @@ Create `config/initializers/etlify.rb`:
 # config/initializers/etlify.rb
 Etlify.configure do |config|
   # Choose the CRM adapter (default is a NullAdapter; be sure to change it)
-  config.crm_adapter = Etlify::Adapters::HubspotAdapter.new(
+  config.crm_adapter = Etlify::Adapters::HubspotV3Adapter.new(
     access_token: ENV["HUBSPOT_PRIVATE_APP_TOKEN"]
   )
 
@@ -245,13 +245,13 @@ end
 
 ## HubSpot adapter (API v3)
 
-Etlify ships with `Etlify::Adapters::HubspotAdapter`. It supports native objects (e.g. **contacts**, **companies**, **deals**) and custom objects by API name.
+Etlify ships with `Etlify::Adapters::HubspotV3Adapter`. It supports native objects (e.g. **contacts**, **companies**, **deals**) and custom objects by API name.
 
 ### Configuration
 
 ```ruby
 Etlify.configure do |config|
-  config.crm_adapter = Etlify::Adapters::HubspotAdapter.new(
+  config.crm_adapter = Etlify::Adapters::HubspotV3Adapter.new(
     access_token: ENV["HUBSPOT_PRIVATE_APP_TOKEN"]
   )
 end
@@ -396,7 +396,7 @@ expect(fake_adapter).to have_received(:upsert!).with(
 ## Adapters included
 
 - `Etlify::Adapters::NullAdapter` (default; no-op)
-- `Etlify::Adapters::HubspotAdapter` (API v3)
+- `Etlify::Adapters::HubspotV3Adapter` (API v3)
 
 ---
 

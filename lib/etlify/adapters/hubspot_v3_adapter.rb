@@ -13,10 +13,10 @@ module Etlify
     # - delete! returns false on 404 (object not found), raises otherwise.
     #
     # Usage:
-    #   adapter = Etlify::Adapters::HubspotAdapter.new(access_token: ENV["HUBSPOT_PRIVATE_APP_TOKEN"])
+    #   adapter = Etlify::Adapters::HubspotV3Adapter.new(access_token: ENV["HUBSPOT_PRIVATE_APP_TOKEN"])
     #   adapter.upsert!(object_type: "contacts", payload: { email: "john@example.com" }, id_property: "email")
     #   adapter.delete!(object_type: "contacts", crm_id: "123") # => true, or false if 404
-    class HubspotAdapter
+    class HubspotV3Adapter
       API_BASE = "https://api.hubapi.com"
 
       # @param access_token [String] HubSpot private app token

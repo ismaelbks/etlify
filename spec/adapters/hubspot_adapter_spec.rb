@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "rails_helper"
-require "etlify/adapters/hubspot_adapter"
+require "etlify/adapters/hubspot_v3_adapter"
 
-RSpec.describe Etlify::Adapters::HubspotAdapter do
+RSpec.describe Etlify::Adapters::HubspotV3Adapter do
   let(:token) { "test-token" }
   let(:http)  { instance_double("HttpClient") }
 
