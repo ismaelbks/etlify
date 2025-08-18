@@ -13,7 +13,6 @@ class <%= file_name.camelize %> < ActiveRecord::Migration[<%= ActiveRecord::VERS
 
     add_index :crm_synchronisations, :crm_id, unique: true
     add_index :crm_synchronisations, %i[resource_type resource_id], unique: true, name: "idx_crm_sync_on_resource"
-    add_index :crm_synchronisations, :last_digest
     add_index :crm_synchronisations, :last_synced_at
     add_index :crm_synchronisations, :resource_type
     add_index :crm_synchronisations, :resource_id
