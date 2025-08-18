@@ -16,6 +16,5 @@ class <%= file_name.camelize %> < ActiveRecord::Migration[<%= ActiveRecord::VERS
     add_index :crm_synchronisations, :last_synced_at
     add_index :crm_synchronisations, :resource_type
     add_index :crm_synchronisations, :resource_id
-    add_index :crm_synchronisations, :last_error
   end
 end
