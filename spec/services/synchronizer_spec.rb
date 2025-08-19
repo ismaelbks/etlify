@@ -17,15 +17,25 @@ RSpec.describe Etlify::Synchronizer do
   end
 
   it "is idempotent if the digest hasn't changed", :aggregate_failures do
-    adapter = instance_double("Adapter")
-    allow(adapter).to receive(:upsert!).and_return("crm-456")
-    allow(Etlify.config).to receive(:crm_adapter).and_return(adapter)
+    frozen_time = Time.current
 
-    first = described_class.call(user)
-    second = described_class.call(user)
+    Timecop.freeze(frozen_time) do
+      adapter = instance_double("Adapter")
+      allow(adapter).to receive(:upsert!).and_return("crm-456")
+      allow(Etlify.config).to receive(:crm_adapter).and_return(adapter)
+      first = described_class.call(user)
 
-    expect(first).to eq(:synced)
-    expect(second).to eq(:not_modified)
+      expect(first).to eq(:synced)
+      sync = user.crm_synchronisation
+      expect(sync.last_synced_at).to eq(frozen_time)
+    end
+
+    Timecop.freeze(frozen_time + 1.second) do
+      second = described_class.call(user)
+      sync = user.crm_synchronisation
+      expect(second).to eq(:not_modified)
+      expect(sync.last_synced_at).to eq(frozen_time + 1.second)
+    end
   end
 
   it "records the error on the sync_line when the adapter fails", :aggregate_failures do

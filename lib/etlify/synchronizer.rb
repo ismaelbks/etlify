@@ -12,22 +12,25 @@ module Etlify
 
     def call
       @record.with_lock do
-        return :not_modified unless sync_line.stale?(digest)
+        if sync_line.stale?(digest)
+          crm_id = Etlify.config.crm_adapter.upsert!(
+            payload: payload,
+            id_property: @record.etlify_id_property,
+            object_type: @record.etlify_crm_object_type
+          )
 
-        crm_id = Etlify.config.crm_adapter.upsert!(
-          payload: payload,
-          id_property: @record.etlify_id_property,
-          object_type: @record.etlify_crm_object_type
-        )
+          sync_line.update!(
+            crm_id: crm_id.presence,
+            last_digest: digest,
+            last_synced_at: Time.current,
+            last_error: nil
+          )
 
-        sync_line.update!(
-          crm_id: crm_id.presence,
-          last_digest: digest,
-          last_synced_at: Time.current,
-          last_error: nil
-        )
-
-        :synced
+          :synced
+        else
+          sync_line.update!(last_synced_at: Time.current)
+          :not_modified
+        end
       end
     rescue StandardError => e
       sync_line.update!(last_error: e.message)

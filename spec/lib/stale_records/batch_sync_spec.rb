@@ -94,10 +94,10 @@ RSpec.describe Etlify::StaleRecords::BatchSync do
           ActiveJob::Base.queue_adapter.enqueued_jobs.size
         }.by(5)
 
-        job = Etlify.config.sync_job_class.constantize
+        job = Etlify.config.sync_job_class
         enq = ActiveJob::Base.queue_adapter.enqueued_jobs
 
-        expect(enq.map { |j| j[:job] }.uniq).to include(job)
+        expect(enq.map { |j| j[:job].to_s }.uniq).to include(job)
 
         args = enq.map { |j| j[:args] }
         expect(args).to all(
