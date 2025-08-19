@@ -176,50 +176,104 @@ Etlify.config.crm_adapter = MyCrmAdapter.new(api_key: ENV["MYCRM_API_KEY"])
 
 ## Batch synchronisation
 
-Beyond single-record syncs, Etlify ships with a batch API to **synchronise all
-records that changed since a given point in time**. This is useful to:
+Beyond single-record sync, Etlify provides a **batch resynchronisation API** that targets **all “stale” records** (those whose data has changed in Rails since the last CRM sync). This is useful for:
 
-- recover from outages or CRM downtime,
-- run periodic re-syncs (e.g. from a cron job),
-- debug the synchronisation logic against a controlled dataset.
+- recovering from CRM or worker outages,
+- triggering periodic re-syncs (cron jobs),
+- testing/debugging your serialization logic on a controlled dataset.
 
 ### API
 
 ```ruby
-# Async (default): enqueue one job per record
-Etlify::BatchSync::StaleRecordsSyncer.call(since: 3.hours.ago)
+# Enqueue (default): one job per stale record
+Etlify::StaleRecords::BatchSync.call
 
-# Synchronous: run inline in the current process
-Etlify::BatchSync::StaleRecordsSyncer.call(
-  since: 1.day.ago,
-  async: false
+# Restrict to specific models
+Etlify::StaleRecords::BatchSync.call(models: [User, Company])
+
+# Run inline (no jobs), useful for scripts/maintenance
+Etlify::StaleRecords::BatchSync.call(async: false)
+
+# Adjust SQL batch size (number of IDs per batch)
+Etlify::StaleRecords::BatchSync.call(batch_size: 1_000)
+
+# Throttle (pause in seconds) between processed records
+Etlify::StaleRecords::BatchSync.call(async: false, throttle: 0.01)
+
+# Dry-run: count without enqueuing or syncing
+Etlify::StaleRecords::BatchSync.call(dry_run: true)
+
+# Custom logger (IO-like)
+logger = Logger.new($stdout)
+Etlify::StaleRecords::BatchSync.call(logger: logger)
+```
+
+**Return value**
+The method returns a stats Hash:
+
+```ruby
+{
+  total:     Integer,              # number of records processed (or counted)
+  per_model: { "User" => 42, ...}, # per-model breakdown
+  errors:    Integer               # number of errors in async:false mode
+}
+```
+
+> By default, jobs are enqueued via `Etlify.config.sync_job_class`
+> (e.g. `"Etlify::SyncJob"`) and executed by your ActiveJob backend.
+
+### Examples
+
+```ruby
+# 1) Resync the entire app by enqueuing (production-friendly)
+stats = Etlify::StaleRecords::BatchSync.call
+# => { total: 1532, per_model: { "User"=>920, "Company"=>612 }, errors: 0 }
+
+# 2) Maintenance script, inline execution with slight throttle
+stats = Etlify::StaleRecords::BatchSync.call(
+  async: false,
+  batch_size: 500,
+  throttle: 0.005
 )
 
-# Custom batch size (number of IDs per SQL batch)
-Etlify::BatchSync::StaleRecordsSyncer.call(
-  since: 1.week.ago,
-  batch_size: 1000
-)
+# 3) Dry-run to estimate scope before the actual run
+preview = Etlify::StaleRecords::BatchSync.call(dry_run: true)
 
-# Pass ActiveJob options (queue name, priority, etc.)
-Etlify::BatchSync::StaleRecordsSyncer.call(
-  since: 2.days.ago,
-  job_options: { queue: "etlify", priority: 10 }
-)
+# 4) Targeted run (e.g. only Users) for testing
+only_users = Etlify::StaleRecords::BatchSync.call(models: [User])
 ```
 
 ### How it works
 
-- `StaleRecordsFetcher` inspects all models that declared `etlified_with` and
-  builds SQL scopes to find records whose **own timestamp or dependencies’
-  timestamps** are within `[since, now]`.
-- Results are projected down to **only the primary key** to keep queries light.
-- `StaleRecordsSyncer` then iterates over those records in **batches**:
-  - in _async_ mode (default), enqueues a `SyncJob` for each record,
-  - in _sync_ mode, calls the `Synchronizer` directly inline.
+- `Etlify::StaleRecords::Finder` scans all **etlified models**
+  (those that called `etlified_with`) and builds, for each,
+  a **SQL relation selecting only the PKs** of stale records.
+- A record is considered stale if:
+  - it **has no** `crm_synchronisation` row, **or**
+  - its `last_synced_at` is **older** than the **max** `updated_at` among:
+    - its own row,
+    - and its declared dependencies (via `dependencies:` in `etlified_with`,
+      supporting `belongs_to`, `has_one`, `has_many`, `has_* :through`,
+      and polymorphic `belongs_to`).
+- `Etlify::StaleRecords::BatchSync` then iterates **by ID batches**:
+  - in **async: true** mode (default): **enqueue** one job per ID without loading
+    full records into memory;
+  - in **async: false** mode: load each record and pass it to
+    `Etlify::Synchronizer.call(record)` **inline**
+    (errors are logged and counted without interrupting the batch).
+- The optional `throttle` adds a **short pause** between processed records
+  (useful to protect third-party APIs or the DB when running inline).
 
-> ⚡️ Tip: prefer `async: true` in production so Rails web or rake processes
-> aren’t blocked; let your background workers handle the flow.
+## Best practices
+
+- **Production**: prefer `async: true` with a **dedicated, low-priority queue**
+  via ActiveJob.
+- **Stable payloads**: ensure your serializers produce deterministic Hashes to
+  benefit from **idempotence**.
+- **Dependencies**: declare `dependencies:` accurately in `etlified_with` so
+  indirect changes trigger resyncs.
+- **Dry-run** before a large run to estimate load (`dry_run: true`).
+- **Batch size**: adjust `batch_size` to your DB to balance throughput and memory.
 
 ---
 
