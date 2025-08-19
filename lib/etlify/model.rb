@@ -38,12 +38,18 @@ module Etlify
           instance_accessor: true,
           default: id_property
         )
+        class_attribute(
+          :etlify_dependencies,
+          instance_accessor: false,
+          default: Array(dependencies).map(&:to_sym)
+        )
         has_one(
           :crm_synchronisation,
           as: :resource,
           dependent: :destroy,
           class_name: "CrmSynchronisation"
         )
+
       end
     end
 

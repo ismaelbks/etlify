@@ -14,3 +14,11 @@ RSpec.shared_context "with companies and users" do
     )
   end
 end
+
+def create_sync_for!(record, last_synced_at:)
+  CrmSynchronisation.create!(
+    resource_type: record.class.name,
+    resource_id: record.id,
+    last_synced_at: last_synced_at
+  )
+end

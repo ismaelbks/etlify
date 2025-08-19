@@ -6,7 +6,12 @@ module Etlify
     ENQUEUE_LOCK_TTL = 15.minutes
     around_enqueue do |job, block|
       key = enqueue_lock_key(job)
-      locked = Etlify.config.cache_store.write(key, 1, expires_in: ENQUEUE_LOCK_TTL, unless_exist: true)
+      locked = Etlify.config.cache_store.write(
+        key,
+        1,
+        expires_in: ENQUEUE_LOCK_TTL,
+        unless_exist: true
+      )
       block.call if locked
     end
 

@@ -1,5 +1,6 @@
 require "rspec"
 require "timecop"
+require "rails/generators"
 
 RSpec.configure do |config|
   config.order = :random

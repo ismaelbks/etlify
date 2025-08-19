@@ -21,5 +21,11 @@ RSpec.describe Etlify::Serializers::UserSerializer do
         company_id: 1
       )
     end
+
+    it "raises an error when method is call from parent class" do
+      expect { Etlify::Serializers::BaseSerializer.new(user).as_crm_payload }.to(
+        raise_error(NotImplementedError)
+      )
+    end
   end
 end
