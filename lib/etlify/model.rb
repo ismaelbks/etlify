@@ -69,7 +69,13 @@ module Etlify
       return false if self.class.respond_to?(:etlify_guard) && !self.class.etlify_guard.call(self)
 
       if async
-        job_class.perform_later(self.class.name, id)
+        if job_class.respond_to?(:perform_later)
+          job_class.perform_later(self.class.name, id)
+        elsif job_class.respond_to?(:perform_async)
+          job_class.perform_async(self.class.name, id)
+        else
+          raise ArgumentError, "No job class available for CRM sync"
+        end
       else
         Etlify::Synchronizer.call(self)
       end
